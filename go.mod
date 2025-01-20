@@ -3,7 +3,7 @@ module sqlite-single-mutex
 go 1.22
 
 require (
-	github.com/glebarez/go-sqlite v1.22.0
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/stretchr/testify v1.10.0
 	zombiezen.com/go/sqlite v1.4.0
 
