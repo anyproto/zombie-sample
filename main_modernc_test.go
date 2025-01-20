@@ -43,6 +43,7 @@ func runModernc(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:test.db?cache=shared&mode=rwc&_journal_mode=WAL")
 	require.NoError(t, err)
 	defer db.Close()
+	db.SetMaxOpenConns(readConn + 1)
 
 	ctx := context.Background()
 
