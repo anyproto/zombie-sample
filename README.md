@@ -91,69 +91,65 @@ top
 `go test -v -run SQLiteOperationsModernc1Conn -count 1 -cpuprofile cpu_modernc_1.out && go tool pprof cpu_modernc_1.out`
 You'll see:
 ```
-   main_modernc_test.go:74: created 100 tables; 7.533291ms
-    main_modernc_test.go:86: prepared 1 read connections
-    main_modernc_test.go:131: inserted 3000 rows; 81.042959ms
-    main_modernc_test.go:172: read connection 0 processed 10000 queries; 205.214416ms; avg 20.521µs/query
-    main_modernc_test.go:117: created 1000 extra tables; 11.791786708s
-    main_modernc_test.go:177: Test finished successfully
+   main_modernc_test.go:59: created 100 tables; 9.249833ms
+    main_modernc_test.go:67: prepared 1 read connections
+    main_modernc_test.go:100: inserted 3000 rows; 88.906292ms
+    main_modernc_test.go:126: read connection 0 processed 10000 queries; 154.517833ms; avg 15.451µs/query
+    main_modernc_test.go:86: created 1000 extra tables; 11.71770125s
+    main_modernc_test.go:131: Test finished successfully
+
 ```
 
 top
 ```
       flat  flat%   sum%        cum   cum%
-     0.27s 23.48% 23.48%      0.27s 23.48%  runtime.pthread_cond_signal
-     0.25s 21.74% 45.22%      0.25s 21.74%  syscall.syscall
-     0.18s 15.65% 60.87%      0.18s 15.65%  syscall.syscall6
-     0.08s  6.96% 67.83%      0.08s  6.96%  runtime.pthread_cond_wait
-     0.05s  4.35% 72.17%      0.05s  4.35%  runtime.usleep
-     0.04s  3.48% 75.65%      0.04s  3.48%  runtime.kevent
-     0.03s  2.61% 78.26%      0.03s  2.61%  modernc.org/sqlite/lib._btreeParseCellPtr
-     0.02s  1.74% 80.00%      0.02s  1.74%  runtime.pthread_kill
-     0.02s  1.74% 81.74%      0.02s  1.74%  sync.(*Mutex).Lock
-     0.01s  0.87% 82.61%      0.01s  0.87%  modernc.org/libc.X__builtin___memcpy_chk
+Showing top 10 nodes out of 182
+      flat  flat%   sum%        cum   cum%
+     360ms 38.30% 38.30%      360ms 38.30%  syscall.syscall6
+     190ms 20.21% 58.51%      190ms 20.21%  syscall.syscall
+     110ms 11.70% 70.21%      110ms 11.70%  runtime.pthread_cond_signal
+      80ms  8.51% 78.72%       80ms  8.51%  runtime.pthread_cond_wait
+      40ms  4.26% 82.98%       40ms  4.26%  modernc.org/sqlite/lib._btreeParseCellPtr
+      20ms  2.13% 85.11%       20ms  2.13%  modernc.org/sqlite/lib._sqlite3MemMalloc
+      20ms  2.13% 87.23%      690ms 73.40%  modernc.org/sqlite/lib._sqlite3VdbeExec
+      10ms  1.06% 88.30%       10ms  1.06%  modernc.org/libc.Xmemset
+      10ms  1.06% 89.36%       10ms  1.06%  modernc.org/sqlite/lib.Xsqlite3_mutex_try
+      10ms  1.06% 90.43%       20ms  2.13%  modernc.org/sqlite/lib._btreeNext
+
 ```
 
 ## run modernc sample with 16 connections
 `go test -v -run SQLiteOperationsModernc16Conn -count 1 -cpuprofile cpu_modernc_16.out && go tool pprof cpu_modernc_16.out`
 You'll see:
 ```
-  main_modernc_test.go:74: created 100 tables; 15.366333ms
-    main_modernc_test.go:86: prepared 16 read connections
-    main_modernc_test.go:131: inserted 3000 rows; 159.670625ms
-    main_modernc_test.go:172: read connection 5 processed 10000 queries; 1.606798375s; avg 2.570877ms/query
-    main_modernc_test.go:172: read connection 15 processed 10000 queries; 1.678334417s; avg 2.685335ms/query
-    main_modernc_test.go:172: read connection 9 processed 10000 queries; 1.701348584s; avg 2.722157ms/query
-    main_modernc_test.go:172: read connection 10 processed 10000 queries; 1.70956075s; avg 2.735297ms/query
-    main_modernc_test.go:172: read connection 6 processed 10000 queries; 1.715997583s; avg 2.745596ms/query
-    main_modernc_test.go:172: read connection 8 processed 10000 queries; 1.717039417s; avg 2.747263ms/query
-    main_modernc_test.go:172: read connection 1 processed 10000 queries; 1.721902291s; avg 2.755043ms/query
-    main_modernc_test.go:172: read connection 4 processed 10000 queries; 1.725754917s; avg 2.761207ms/query
-    main_modernc_test.go:172: read connection 12 processed 10000 queries; 1.733519625s; avg 2.773631ms/query
-    main_modernc_test.go:172: read connection 13 processed 10000 queries; 1.736158709s; avg 2.777853ms/query
-    main_modernc_test.go:172: read connection 2 processed 10000 queries; 1.7488855s; avg 2.798216ms/query
-    main_modernc_test.go:172: read connection 3 processed 10000 queries; 1.750401708s; avg 2.800642ms/query
-    main_modernc_test.go:172: read connection 11 processed 10000 queries; 1.751397542s; avg 2.802236ms/query
-    main_modernc_test.go:172: read connection 0 processed 10000 queries; 1.756709625s; avg 2.810735ms/query
-    main_modernc_test.go:172: read connection 14 processed 10000 queries; 1.757092583s; avg 2.811348ms/query
-    main_modernc_test.go:172: read connection 7 processed 10000 queries; 1.759543666s; avg 2.815269ms/query
-    main_modernc_test.go:117: created 1000 extra tables; 11.6858805s
-    main_modernc_test.go:177: Test finished successfully
+     main_modernc_test.go:126: read connection 15 processed 10000 queries; 1.50213225s; avg 2.403411ms/query
+    main_modernc_test.go:126: read connection 7 processed 10000 queries; 1.511492041s; avg 2.418387ms/query
+    main_modernc_test.go:126: read connection 4 processed 10000 queries; 1.51270775s; avg 2.420332ms/query
+    main_modernc_test.go:126: read connection 10 processed 10000 queries; 1.513714042s; avg 2.421942ms/query
+    main_modernc_test.go:126: read connection 12 processed 10000 queries; 1.51636225s; avg 2.426179ms/query
+    main_modernc_test.go:126: read connection 1 processed 10000 queries; 1.516493916s; avg 2.42639ms/query
+    main_modernc_test.go:126: read connection 8 processed 10000 queries; 1.516885708s; avg 2.427017ms/query
+    main_modernc_test.go:126: read connection 5 processed 10000 queries; 1.517493375s; avg 2.427989ms/query
+    main_modernc_test.go:126: read connection 3 processed 10000 queries; 1.51758025s; avg 2.428128ms/query
+    main_modernc_test.go:86: created 1000 extra tables; 11.600858833s
+    main_modernc_test.go:131: Test finished successfully
+
 ```
 
 top
 
 ```
-Showing top 10 nodes out of 202
+Showing top 10 nodes out of 153
       flat  flat%   sum%        cum   cum%
-    1470ms 34.83% 34.83%     1470ms 34.83%  runtime.usleep
-     710ms 16.82% 51.66%      710ms 16.82%  runtime.pthread_cond_wait
-     430ms 10.19% 61.85%      430ms 10.19%  runtime.pthread_cond_signal
-     220ms  5.21% 67.06%      220ms  5.21%  syscall.syscall6
-     150ms  3.55% 70.62%      150ms  3.55%  runtime.madvise
-     130ms  3.08% 73.70%      130ms  3.08%  syscall.syscall
-     110ms  2.61% 76.30%      110ms  2.61%  runtime.(*mspan).heapBitsSmallForAddr
-      70ms  1.66% 77.96%       70ms  1.66%  runtime.memclrNoHeapPointers
-      60ms  1.42% 79.38%       60ms  1.42%  runtime.kevent
-      50ms  1.18% 80.57%      210ms  4.98%  runtime.scanobject
+     0.93s 34.70% 34.70%      0.93s 34.70%  syscall.syscall
+     0.56s 20.90% 55.60%      0.56s 20.90%  syscall.syscall6
+     0.43s 16.04% 71.64%      0.43s 16.04%  runtime.pthread_cond_wait
+     0.25s  9.33% 80.97%      0.25s  9.33%  runtime.pthread_cond_signal
+     0.21s  7.84% 88.81%      0.21s  7.84%  runtime.usleep
+     0.04s  1.49% 90.30%      1.60s 59.70%  modernc.org/sqlite/lib._sqlite3VdbeExec
+     0.03s  1.12% 91.42%      0.03s  1.12%  modernc.org/sqlite/lib._btreeParseCellPtr
+     0.02s  0.75% 92.16%      0.02s  0.75%  modernc.org/sqlite/lib._sqlite3FkClearTriggerCache
+     0.02s  0.75% 92.91%      0.07s  2.61%  modernc.org/sqlite/lib._yy_reduce
+     0.02s  0.75% 93.66%      0.02s  0.75%  runtime.kevent
+
 ```
