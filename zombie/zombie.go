@@ -1,15 +1,14 @@
-package test
+package main
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"testing"
 	"time"
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
@@ -19,32 +18,36 @@ import (
 
 var (
 	collN      = 100
-	docInsertN = 300000
+	docInsertN = 30000000
 	findIdN    = 10000
 	readConn   = 0
 	extraCollN = 1000
 )
 
-func TestSQLiteOperationsZombie1Conn(t *testing.T) {
-	readConn = 1
-	runZombie(t)
+func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+	err := execMain()
+	if err != nil {
+		panic(err)
+	}
 }
 
-func TestSQLiteOperationsZombie16Conn(t *testing.T) {
-	readConn = 16
-	runZombie(t)
-}
-
-func runZombie(t *testing.T) {
+func execMain() error {
 	dbPath, _ := os.MkdirTemp("", "sqlite-*")
 	dbPath = filepath.Join(dbPath, "test.db")
 
 	// Open primary database connection
 	mainDB, err := sqlite.OpenConn(dbPath, sqlite.OpenCreate|sqlite.OpenWAL|sqlite.OpenURI|sqlite.OpenReadWrite)
-	require.NoError(t, err)
+	if err != nil {
+		return err
+	}
 	defer mainDB.Close()
 	mainDB2, err := sqlite.OpenConn(dbPath, sqlite.OpenCreate|sqlite.OpenWAL|sqlite.OpenURI|sqlite.OpenReadWrite)
-	require.NoError(t, err)
+	if err != nil {
+		return err
+	}
 	defer mainDB2.Close()
 
 	// Create collections
@@ -77,18 +80,22 @@ func runZombie(t *testing.T) {
 
 		tables[i] = tableName
 	}
-	t.Logf("created %d tables; %v", collN, time.Since(tStart))
+	log.Printf("created %d tables; %v\n", collN, time.Since(tStart))
 
 	// Prepare read connections
 	readDBs := make([]*sqlite.Conn, readConn)
 	for i := 0; i < readConn; i++ {
 		readDB, err := sqlite.OpenConn(dbPath, sqlite.OpenWAL|sqlite.OpenURI|sqlite.OpenReadOnly)
-		require.NoError(t, err)
+		if err != nil {
+			return err
+		}
 		readDBs[i] = readDB
 		defer readDB.Close()
-		require.NoError(t, err)
+		if err != nil {
+			return err
+		}
 	}
-	t.Logf("prepared %d read connections", readConn)
+	log.Printf("prepared %d read connections", readConn)
 
 	var wg sync.WaitGroup
 
@@ -121,7 +128,7 @@ func runZombie(t *testing.T) {
 
 			time.Sleep(10 * time.Millisecond)
 		}
-		t.Logf("created %d extra tables; %v", extraCollN, time.Since(tStart))
+		log.Printf("created %d extra tables; %v", extraCollN, time.Since(tStart))
 	}()
 
 	// Insert data
@@ -131,34 +138,83 @@ func runZombie(t *testing.T) {
 		tStart := time.Now()
 		data := strings.Repeat("X", 1024)
 
-		for i := 0; i < docInsertN; i++ {
-			table := tables[rand.Intn(len(tables))]
-			insertSQL := fmt.Sprintf(`INSERT INTO %s (id, data) VALUES (?, ?)`, table)
+		batchSize := 1000000 // количество вставок в одной транзакции
 
-			stmt, err := mainDB.Prepare(insertSQL)
+		for batchStart := 0; batchStart < docInsertN; batchStart += batchSize {
+			// Начинаем новую транзакцию
+			err := sqlitex.ExecuteTransient(mainDB, "BEGIN;", nil)
 			if err != nil {
-				log.Printf("failed to prepare statement for %s: %v", table, err)
-				continue
+				log.Fatalf("failed to begin transaction: %v", err)
 			}
 
-			stmt.BindInt64(1, int64(i))
-
-			stmt.BindText(2, data)
-			_, err = stmt.Step()
-			if err != nil {
-				log.Printf("failed to execute statement for %s: %v", table, err)
-				stmt.Finalize()
-				_ = sqlitex.ExecuteTransient(mainDB, "ROLLBACK;", nil)
-				continue
+			// Ограничиваем конец батча
+			batchEnd := batchStart + batchSize
+			if batchEnd > docInsertN {
+				batchEnd = docInsertN
 			}
 
-			err = stmt.Finalize()
-			if err != nil {
-				log.Fatalf("failed to finalize statement: %v", err)
+			for i := batchStart; i < batchEnd; i++ {
+				table := tables[rand.Intn(len(tables))]
+				insertSQL := fmt.Sprintf(`INSERT INTO %s (id, data) VALUES (?, ?)`, table)
+
+				stmt, err := mainDB.Prepare(insertSQL)
+				if err != nil {
+					log.Printf("failed to prepare statement for %s: %v", table, err)
+					continue
+				}
+
+				stmt.BindInt64(1, int64(i))
+				stmt.BindText(2, data)
+
+				_, err = stmt.Step()
+				if err != nil {
+					log.Printf("failed to execute statement for %s: %v", table, err)
+					stmt.Finalize()
+					_ = sqlitex.ExecuteTransient(mainDB, "ROLLBACK;", nil)
+					break // Прерываем текущий батч при ошибке
+				}
+
+				err = stmt.Finalize()
+				if err != nil {
+					log.Fatalf("failed to finalize statement: %v", err)
+				}
 			}
 
+			// Завершаем транзакцию
+			err = sqlitex.ExecuteTransient(mainDB, "COMMIT;", nil)
+			if err != nil {
+				log.Fatalf("failed to commit transaction: %v", err)
+			}
 		}
-		t.Logf("inserted %d rows; %v", docInsertN, time.Since(tStart))
+
+		//for i := 0; i < docInsertN; i++ {
+		//	table := tables[rand.Intn(len(tables))]
+		//	insertSQL := fmt.Sprintf(`INSERT INTO %s (id, data) VALUES (?, ?)`, table)
+		//
+		//	stmt, err := mainDB.Prepare(insertSQL)
+		//	if err != nil {
+		//		log.Printf("failed to prepare statement for %s: %v", table, err)
+		//		continue
+		//	}
+		//
+		//	stmt.BindInt64(1, int64(i))
+		//
+		//	stmt.BindText(2, data)
+		//	_, err = stmt.Step()
+		//	if err != nil {
+		//		log.Printf("failed to execute statement for %s: %v", table, err)
+		//		stmt.Finalize()
+		//		_ = sqlitex.ExecuteTransient(mainDB, "ROLLBACK;", nil)
+		//		continue
+		//	}
+		//
+		//	err = stmt.Finalize()
+		//	if err != nil {
+		//		log.Fatalf("failed to finalize statement: %v", err)
+		//	}
+		//
+		//}
+		log.Printf("inserted %d rows; %v", docInsertN, time.Since(tStart))
 	}()
 
 	// Read data
@@ -212,10 +268,11 @@ func runZombie(t *testing.T) {
 					log.Fatalf("failed to commit transaction: %v", err)
 				}
 			}
-			t.Logf("read connection %d processed %d queries; %v; avg %v/query", connIdx, findIdN, time.Since(tStart), time.Since(tStart)/time.Duration(findIdN/readConn))
+			log.Printf("read connection %d processed %d queries; %v; avg %v/query", connIdx, findIdN, time.Since(tStart), time.Since(tStart)/time.Duration(findIdN/readConn))
 		}(i)
 	}
 
 	wg.Wait()
-	t.Log("Test finished successfully")
+	log.Printf("Test finished successfully")
+	return nil
 }
