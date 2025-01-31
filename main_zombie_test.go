@@ -38,6 +38,7 @@ func TestSQLiteOperationsZombie16Conn(t *testing.T) {
 func runZombie(t *testing.T) {
 	dbPath, _ := os.MkdirTemp("", "sqlite-*")
 	dbPath = filepath.Join(dbPath, "test.db")
+	print(dbPath)
 
 	// Open primary database connection
 	mainDB, err := sqlite.OpenConn(dbPath, sqlite.OpenCreate|sqlite.OpenWAL|sqlite.OpenURI|sqlite.OpenReadWrite)
